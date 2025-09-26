@@ -33,6 +33,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'lab_2_question_4 = lab_2_question_4.lab_2_question_4:main',
+            'lab_2_question_3 = lab_2_question_3.lab_2_question_3:main',
             'image_mean_feature_x = image_mean_feature_x.image_mean_feature_x:main',
             'flaky_door_opener = flaky_door_opener.flaky_door_opener:main',
         ],
