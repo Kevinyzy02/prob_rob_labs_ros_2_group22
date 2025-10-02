@@ -17,24 +17,37 @@ class lab_2_question_4(Node):
 
         self.door_pub = self.create_publisher(Float64, '/hinged_glass_door/torque', 10)
         self.cmd_pub  = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.feature_sub = self.create_subscription(Float64, '/feature_mean', self.feature_callback, 10)
 
         self.torque_value = 2.0
+        self.threshold = 285
+        self.required_confirmations = 10
 
         self.declare_parameter('forward_speed', 0.5)   # default = 0.5 m/s
         self.vel = self.get_parameter('forward_speed').get_parameter_value().double_value
 
         self.state = 0
         self.counter = 0
+        self.open_streak = 0
+        self.feature_value = None
         
         self.log.info(f'Node started with forward_speed={self.vel:.3f} m/s')
+
+    def feature_callback(self, msg):
+        self.feature_value = msg.data
+        if self.feature_value < self.threshold:
+            self.open_streak += 1
+        else:
+            self.open_streak = 0
 
     def heartbeat(self):
         if self.state == 0:
             self.publish_torque(self.torque_value)
             self.counter += 1
-            if self.counter > 40:
-                self.counter = 0
+            if self.open_streak >= self.required_confirmations:
+                self.log.info("Door open confirmed, moving forward.")
                 self.state += 1
+                self.counter = 0
         if self.state == 1:
             self.publish_vel(self.vel)
             self.counter += 1
