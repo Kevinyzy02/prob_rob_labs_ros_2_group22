@@ -4,7 +4,7 @@ from std_msgs.msg import Float64, Bool
 import time
 
 heartbeat_period = 0.1
-time_window = 20.0
+time_window = 60.0
 threshold = 238
 
 
