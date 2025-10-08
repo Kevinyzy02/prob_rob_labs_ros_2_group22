@@ -16,7 +16,7 @@ P_z_o_x_c = 0.052
 class Lab_3Assignment_6(Node):
 
     def __init__(self):
-        super().__init__('lab_3_assignment_5')
+        super().__init__('lab_3_assignment_6')
         self.log = self.get_logger()
         self.timer = self.create_timer(heartbeat_period, self.heartbeat)
         self.feature_sub = self.create_subscription(Float64, '/feature_mean', self.feature_callback, 10)
