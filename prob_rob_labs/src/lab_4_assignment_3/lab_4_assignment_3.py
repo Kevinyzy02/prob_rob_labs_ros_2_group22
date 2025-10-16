@@ -24,6 +24,13 @@ class Tb3StepTest(Node):
         self.pose_pub = self.create_publisher(PoseStamped, '/tb3/ground_truth/pose', 10)
         self.twist_pub = self.create_publisher(TwistStamped, '/tb3/ground_truth/twist', 10)
 
+        self.target_link = 'waffle_pi::base_footprint' 
+        self.frame_id = 'odom'                
+        self.sub = self.create_subscription(
+            LinkStates, '/gazebo/link_states', self.link_states_callback, 10
+        )
+
+
         self.dt = 1.0 / max(self.rate_hz, 1.0)
         self.elapsed = 0.0
         self.timer = self.create_timer(self.dt, self.tick)

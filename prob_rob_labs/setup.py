@@ -33,6 +33,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'lab_4_assignment_8 = lab_4_assignment_8.lab_4_assignment_8:main',
             'lab_4_assignment_6_openloop = lab_4_assignment_6_openloop.lab_4_assignment_6_openloop:main',
             'lab_4_assignment_6 = lab_4_assignment_6.lab_4_assignment_6:main',
             'lab_4_assignment_3 = lab_4_assignment_3.lab_4_assignment_3:main',

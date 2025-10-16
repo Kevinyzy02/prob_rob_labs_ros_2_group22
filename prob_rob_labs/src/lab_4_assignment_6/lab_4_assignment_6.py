@@ -105,11 +105,17 @@ class EkfOdomNode(Node):
 
     def update(self, imu_msg: Imu, odom_msg: Odometry):
 
-        v_enc_r = float(odom_msg.twist.twist.linear.x) / self.r_w
-        v_enc_l = v_enc_r 
+        v_body = float(odom_msg.twist.twist.linear.x)
+        w_body = float(odom_msg.twist.twist.angular.z)
+
+        v_enc_r = (v_body + self.R * w_body) / self.r_w
+        v_enc_l = (v_body - self.R * w_body) / self.r_w
+
         w_gyro = float(imu_msg.angular_velocity.z)
 
-        z = np.array([[v_enc_r], [v_enc_l], [w_gyro]])
+        z = np.array([[v_enc_r],
+                    [v_enc_l],
+                    [w_gyro]])
 
         C = np.array([
             [0, 0, 0, 1 / self.r_w,  self.R / self.r_w],
@@ -152,13 +158,14 @@ class EkfOdomNode(Node):
 
         P = self.P
         cov = [0.0] * 36
-        cov[0] = float(P[0, 0])
-        cov[7] = float(P[1, 1])
-        cov[35] = float(P[2, 2])
+        cov[0]  = float(P[0, 0])   # var(x)
+        cov[7]  = float(P[1, 1])   # var(y)
+        cov[35] = float(P[2, 2])   # var(theta)
+        cov[14] = float(P[3, 3])   # var(v)   
+        cov[21] = float(P[4, 4])   # var(w) 
         odom.pose.covariance = cov
 
         self.pub.publish(odom)
-
 
 def wrap_pi(angle):
     """Wrap angle to [-pi, pi]."""
