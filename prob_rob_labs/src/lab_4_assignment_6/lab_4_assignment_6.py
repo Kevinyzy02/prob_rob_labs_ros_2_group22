@@ -8,6 +8,7 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from tf_transformations import quaternion_from_euler
+from sensor_msgs.msg import JointState
 
 
 class EkfOdomNode(Node):
@@ -15,7 +16,7 @@ class EkfOdomNode(Node):
         super().__init__('lab_4_assignment_6')
 
         self.r_w = 0.033 
-        self.R = 0.1435 / 2.0 
+        self.R = 0.1435
         self.tau_v = 0.3591   
         self.tau_w = 0.446
         self.Gv = 1.0
@@ -27,22 +28,28 @@ class EkfOdomNode(Node):
         self.q_base = np.array([1e-4, 1e-4, 1e-4, 1e-3, 5e-3])
 
         self.R_meas = np.diag([
-            (0.02)**2, 
-            (0.02)**2, 
-            (0.005)**2 
+            (0.02)**2,  # var(omega_r)
+            (0.02)**2,  # var(omega_l)
+            (0.005)**2  # var(omega_g)
         ])
 
         self.u_v = 0.0
         self.u_w = 0.0
 
+        self.cmd_timeout = 0.5
+        self.last_cmd_time = None
+
         self.last_time = None
 
         self.create_subscription(Twist, '/cmd_vel', self.cmd_cb, 10)
+
         self.imu_sub = Subscriber(self, Imu, '/imu')
-        self.odom_sub = Subscriber(self, Odometry, '/odom')
+
+
+        self.jnt_sub = Subscriber(self, JointState, '/joint_states')
 
         self.sync = ApproximateTimeSynchronizer(
-            [self.imu_sub, self.odom_sub], queue_size=20, slop=0.08)
+            [self.imu_sub, self.jnt_sub], queue_size=30, slop=0.03)
         self.sync.registerCallback(self.sync_cb)
 
         self.pub = self.create_publisher(Odometry, '/ekf_odom', 10)
@@ -52,6 +59,7 @@ class EkfOdomNode(Node):
     def cmd_cb(self, msg: Twist):
         self.u_v = float(msg.linear.x)
         self.u_w = float(msg.angular.z)
+        self.last_cmd_time = self.get_clock().now()
 
     def sync_cb(self, imu_msg: Imu, odom_msg: Odometry):
         t = imu_msg.header.stamp.sec + imu_msg.header.stamp.nanosec * 1e-9
@@ -60,7 +68,8 @@ class EkfOdomNode(Node):
             return
 
         dt = t - self.last_time
-        if dt <= 0.0:
+        if dt <= 0.0 or dt > 0.5:
+            self.last_time = t
             return
         self.last_time = t
 
@@ -76,11 +85,19 @@ class EkfOdomNode(Node):
         a_v = 0.1 ** (dt / self.tau_v)
         a_w = 0.1 ** (dt / self.tau_w)
 
+        fresh = (
+            self.last_cmd_time is not None and
+            (self.get_clock().now() - self.last_cmd_time).nanoseconds * 1e-9 <= self.cmd_timeout
+        )
+        u_v_eff = self.u_v if fresh else 0.0
+        u_w_eff = self.u_w if fresh else 0.0
+
         nx = x + v * math.cos(th) * dt
         ny = y + v * math.sin(th) * dt
         nth = wrap_pi(th + w * dt)
-        nv = a_v * v + self.Gv * (1 - a_v) * self.u_v
-        nw = a_w * w + self.Gw * (1 - a_w) * self.u_w
+        nv = a_v * v + self.Gv * (1 - a_v) * u_v_eff
+        nw = a_w * w + self.Gw * (1 - a_w) * u_w_eff
+
         self.x = np.array([[nx], [ny], [nth], [nv], [nw]])
 
         F = np.array([
@@ -105,17 +122,23 @@ class EkfOdomNode(Node):
 
     def update(self, imu_msg: Imu, odom_msg: Odometry):
 
-        v_body = float(odom_msg.twist.twist.linear.x)
-        w_body = float(odom_msg.twist.twist.angular.z)
 
-        v_enc_r = (v_body + self.R * w_body) / self.r_w
-        v_enc_l = (v_body - self.R * w_body) / self.r_w
+        omega_r = 0.0
+        omega_l = 0.0
+        try:
+            idx_r = odom_msg.name.index('wheel_right_joint')
+            idx_l = odom_msg.name.index('wheel_left_joint')
+            if len(odom_msg.velocity) > max(idx_r, idx_l):
+                omega_r = float(odom_msg.velocity[idx_r]) 
+                omega_l = float(odom_msg.velocity[idx_l])  
+        except Exception as e:
+            self.get_logger().warn(f'JointState missing wheel velocities or names: {e}')
 
         w_gyro = float(imu_msg.angular_velocity.z)
 
-        z = np.array([[v_enc_r],
-                    [v_enc_l],
-                    [w_gyro]])
+        z = np.array([[omega_r],
+                      [omega_l],
+                      [w_gyro]])
 
         C = np.array([
             [0, 0, 0, 1 / self.r_w,  self.R / self.r_w],
@@ -157,18 +180,20 @@ class EkfOdomNode(Node):
         odom.twist.twist.angular.z = float(w)
 
         P = self.P
-        cov = [0.0] * 36
-        cov[0]  = float(P[0, 0])   # var(x)
-        cov[7]  = float(P[1, 1])   # var(y)
-        cov[35] = float(P[2, 2])   # var(theta)
-        cov[14] = float(P[3, 3])   # var(v)   
-        cov[21] = float(P[4, 4])   # var(w) 
-        odom.pose.covariance = cov
+        pose_cov = [0.0]*36
+        pose_cov[0]  = float(P[0,0])   # var(x)
+        pose_cov[7]  = float(P[1,1])   # var(y)
+        pose_cov[35] = float(P[2,2])   # var(theta)
+        odom.pose.covariance = pose_cov
+
+        twist_cov = [0.0]*36
+        twist_cov[0]  = float(P[3,3])  # var(v)
+        twist_cov[35] = float(P[4,4])  # var(w)
+        odom.twist.covariance = twist_cov
 
         self.pub.publish(odom)
 
 def wrap_pi(angle):
-    """Wrap angle to [-pi, pi]."""
     return (angle + math.pi) % (2 * math.pi) - math.pi
 
 

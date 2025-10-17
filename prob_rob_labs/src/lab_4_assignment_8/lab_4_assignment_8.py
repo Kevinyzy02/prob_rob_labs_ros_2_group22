@@ -12,10 +12,6 @@ class Lab4Assignment8(Node):
     def __init__(self):
         super().__init__('lab_4_assignment_8')
 
-        self.sub_odom = self.create_subscription(Odometry, '/odom', self.odom_cb, 20)
-        self.pub_gt_pose = self.create_publisher(PoseStamped, '/tb3/ground_truth/pose', 10)
-        self.pub_gt_twist = self.create_publisher(TwistStamped, '/tb3/ground_truth/twist', 10)
-
         self.sub_gt = self.create_subscription(PoseStamped, '/tb3/ground_truth/pose', self.gt_cb, 10)
         self.sub_ekf = self.create_subscription(Odometry, '/ekf_odom', self.ekf_cb, 10)
 
@@ -27,17 +23,6 @@ class Lab4Assignment8(Node):
 
         self.timer = self.create_timer(0.5, self.report_error)
         self.get_logger().info('Assignment 8 node initialized.')
-
-    def odom_cb(self, msg: Odometry):
-        ps = PoseStamped()
-        ps.header = msg.header
-        ps.pose = msg.pose.pose
-        self.pub_gt_pose.publish(ps)
-
-        ts = TwistStamped()
-        ts.header = msg.header
-        ts.twist = msg.twist.twist
-        self.pub_gt_twist.publish(ts)
 
     def gt_cb(self, msg: PoseStamped):
         self.gt_pose = msg
