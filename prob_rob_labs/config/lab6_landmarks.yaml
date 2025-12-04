@@ -1,38 +1,42 @@
 # config/lab6_landmarks.yaml
-# TODO: replace these numbers with the real positions from your lab setup.
 
 landmarks:
-  red:
-    x: 1.0        # [m] landmark center in map frame
-    y: 0.5
-    width: 0.20   # [m] optional
-    height: 0.30  # [m] optional
-    frame_id: "map"
+  - color: "red"
+    x: 8.5
+    y: -5.0
+    z: 0.25
+    radius: 0.1
+    height: 0.5
+    topic: "/vision_red/corners"
 
-  green:
-    x: -0.5
-    y: 1.2
-    width: 0.20
-    height: 0.30
-    frame_id: "map"
+  - color: "green"
+    x: 8.5
+    y: 5.0
+    z: 0.25
+    radius: 0.1
+    height: 0.5
+    topic: "/vision_green/corners"
 
-  blue:
+  - color: "yellow"
+    x: -11.5
+    y: 5.0
+    z: 0.25
+    radius: 0.1
+    height: 0.5
+    topic: "/vision_yellow/corners"
+
+  - color: "magenta"
+    x: -11.5
+    y: -5.0
+    z: 0.25
+    radius: 0.1
+    height: 0.5
+    topic: "/vision_magenta/corners"
+
+  - color: "cyan"
     x: 0.0
-    y: -1.0
-    width: 0.20
-    height: 0.30
-    frame_id: "map"
-
-  yellow:
-    x: 2.0
-    y: 2.0
-    width: 0.20
-    height: 0.30
-    frame_id: "map"
-
-  purple:
-    x: -1.5
-    y: -0.7
-    width: 0.20
-    height: 0.30
-    frame_id: "map"
+    y: 0.0
+    z: 0.25
+    radius: 0.1
+    height: 0.5
+    topic: "/vision_cyan/corners"
