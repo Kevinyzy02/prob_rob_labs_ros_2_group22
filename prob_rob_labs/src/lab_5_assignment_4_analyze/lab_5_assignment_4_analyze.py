@@ -24,7 +24,7 @@ with open(infile, "r") as fh:
 print(f"Loaded {len(rows)} rows from {infile}.")
 
 
-dist_bin_size = 0.1   # 1 meter bins
+dist_bin_size = 0.1   # 0.1 meter bins
 
 def dist_bin(d):
     return int(d // dist_bin_size)

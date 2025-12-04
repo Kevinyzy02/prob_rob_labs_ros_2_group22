@@ -1,0 +1,38 @@
+# config/lab6_landmarks.yaml
+# TODO: replace these numbers with the real positions from your lab setup.
+
+landmarks:
+  red:
+    x: 1.0        # [m] landmark center in map frame
+    y: 0.5
+    width: 0.20   # [m] optional
+    height: 0.30  # [m] optional
+    frame_id: "map"
+
+  green:
+    x: -0.5
+    y: 1.2
+    width: 0.20
+    height: 0.30
+    frame_id: "map"
+
+  blue:
+    x: 0.0
+    y: -1.0
+    width: 0.20
+    height: 0.30
+    frame_id: "map"
+
+  yellow:
+    x: 2.0
+    y: 2.0
+    width: 0.20
+    height: 0.30
+    frame_id: "map"
+
+  purple:
+    x: -1.5
+    y: -0.7
+    width: 0.20
+    height: 0.30
+    frame_id: "map"
