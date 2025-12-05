@@ -188,6 +188,11 @@ class Lab_6Assignment_2(Node):
         dy = my - ry
         q = dx**2 + dy**2
         dist_pred = math.sqrt(q)
+
+        if dist_pred < 0.1:
+            self.get_logger().warn(f"Skipping update for {landmark_color}: Robot too close to landmark estimate (Singularity).")
+            return
+
         bearing_pred = math.atan2(dy, dx) - rtheta
         bearing_pred = math.atan2(math.sin(bearing_pred), math.cos(bearing_pred))
         z_pred = np.array([[dist_pred], [bearing_pred]])
