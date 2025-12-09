@@ -111,7 +111,7 @@ class FinalProjectNode(Node):
 
         self.publish_odom(t)
 
-    def transition_function(self, state, dt, u_v, u_w):
+    def transition_function_old(self, state, dt, u_v, u_w):
         """
         Non-linear state transition function f(x, u).
         Returns the next state.
@@ -129,6 +129,35 @@ class FinalProjectNode(Node):
         nw = a_w * w + self.Gw * (1 - a_w) * u_w
 
         return np.array([[nx], [ny], [nth], [nv], [nw]])
+    
+
+    def transition_function_new(self, state, dt, u_v, u_w):
+        """
+        Non-linear state transition function f(x,u).
+        State: [x, y, th, v, w]
+        Control: commanded v, w (u_v, u_w)
+        """
+        x, y, th, v, w = state.flatten()
+
+        a_v = 0.1 ** (dt / self.tau_v)
+        a_w = 0.1 ** (dt / self.tau_w)
+
+        nv = a_v * v + self.Gv * (1.0 - a_v) * u_v
+        nw = a_w * w + self.Gw * (1.0 - a_w) * u_w
+
+        dth = nw * dt
+        nth = wrap_pi(th + dth)
+
+        if abs(nw) < 1e-4:
+            nx = x + nv * math.cos(th) * dt
+            ny = y + nv * math.sin(th) * dt
+        else:
+            R_c = nv / nw
+
+            nx = x + R_c * (math.sin(th + dth) - math.sin(th))
+            ny = y - R_c * (math.cos(th + dth) - math.cos(th))
+
+        return np.array([[nx], [ny], [nth], [nv], [nw]])
 
     def measurement_model_matrix(self):
 
@@ -139,7 +168,7 @@ class FinalProjectNode(Node):
         ], dtype=float)
         return C
 
-    def predict_ekf(self, dt, u_v, u_w):
+    def predict_ekf_old(self, dt, u_v, u_w):
         x_curr = self.x
         self.x = self.transition_function(x_curr, dt, u_v, u_w)
 
@@ -158,6 +187,61 @@ class FinalProjectNode(Node):
         Q = np.diag(self.q_base * max(dt, 1e-3))
 
         self.P = F @ self.P @ F.T + Q
+
+    def predict_ekf_new(self, dt, u_v, u_w):
+        x_curr = self.x
+        self.x = self.transition_function(x_curr, dt, u_v, u_w)
+
+        x, y, th, v, w = x_curr.flatten()
+        a_v = 0.1 ** (dt / self.tau_v)
+        a_w = 0.1 ** (dt / self.tau_w)
+
+        nv = a_v * v + self.Gv * (1.0 - a_v) * u_v
+        nw = a_w * w + self.Gw * (1.0 - a_w) * u_w
+
+        if abs(nw) < 1e-4:
+            F = np.array([
+                [1.0, 0.0, -nv * math.sin(th) * dt,  a_v * math.cos(th) * dt, 0.0],
+                [0.0, 1.0,  nv * math.cos(th) * dt,  a_v * math.sin(th) * dt, 0.0],
+                [0.0, 0.0,  1.0,                    0.0,                     dt * a_w],
+                [0.0, 0.0,  0.0,                    a_v,                     0.0],
+                [0.0, 0.0,  0.0,                    0.0,                     a_w]
+            ], dtype=float)
+        else:
+            dth    = nw * dt
+            theta2 = th + dth
+
+            S1 = math.sin(theta2) - math.sin(th)
+            C1 = math.cos(theta2) - math.cos(th)
+
+            Rc   = nv / nw
+            Rc_v = a_v / nw
+            Rc_w = -nv * a_w / (nw * nw)
+
+            dS1_dth = math.cos(theta2) - math.cos(th)
+            dS1_dw  = math.cos(theta2) * dt * a_w
+
+            dC1_dth = -math.sin(theta2) + math.sin(th)
+            dC1_dw  = -math.sin(theta2) * dt * a_w
+
+            F = np.array([
+                [1.0, 0.0, Rc * dS1_dth, Rc_v * S1, Rc_w * S1 + Rc * dS1_dw],
+                [0.0, 1.0, -Rc * dC1_dth, -Rc_v * C1, -Rc_w * C1 - Rc * dC1_dw],
+                [0.0, 0.0, 1.0, 0.0, dt * a_w],
+                [0.0, 0.0, 0.0, a_v, 0.0],
+                [0.0, 0.0, 0.0, 0.0, a_w]
+            ], dtype=float)
+
+        Q = np.diag(self.q_base * max(dt, 1e-3))
+        self.P = F @ self.P @ F.T + Q
+
+    # Toggles which motion model to use
+    def transition_function(self, state, dt, u_v, u_w):
+        return self.transition_function_new(state, dt, u_v, u_w)
+    
+    # Toggles which motion model to use    
+    def predict_ekf(self, dt, u_v, u_w):
+        return self.predict_ekf_new(dt, u_v, u_w)
 
     def update_ekf(self, imu_msg, jnt_msg):
         z = self.get_measurement_vector(imu_msg, jnt_msg)
