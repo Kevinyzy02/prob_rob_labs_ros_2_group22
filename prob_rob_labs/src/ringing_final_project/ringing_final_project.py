@@ -150,7 +150,7 @@ class FinalProjectNode(Node):
     
     def predict_ekf(self, dt, u_v, u_w):
         x_curr = self.x
-        self.x = self.transition_function(x_curr, dt, u_v, u_w)
+        self.x = self.transition_function_ringing(x_curr, dt, u_v, u_w)
 
         _, _, th, v, w, alpha = x_curr.flatten()
         a_v = 0.1 ** (dt / self.tau_v)

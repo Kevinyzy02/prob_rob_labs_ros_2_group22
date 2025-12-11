@@ -9,7 +9,7 @@ class Tb3StepTest(Node):
         super().__init__('tb3_step_test')
 
         self.declare_parameter('test_axis', 'angular')
-        self.declare_parameter('step_value', 0.3)      
+        self.declare_parameter('step_value', 1.0)      
         self.declare_parameter('zero_time', 2.0)      
         self.declare_parameter('hold_time', 6.0)        
         self.declare_parameter('rate_hz', 20.0)        
@@ -66,9 +66,9 @@ class Tb3StepTest(Node):
         if self.elapsed < self.zero_time:
             pass
 
-        elif self.elapsed < self.zero_time + 10 * self.hold_time:
+        elif self.elapsed < self.zero_time + self.hold_time:
             for i in range(1, 10):
-                if self.elapsed < self.zero_time + i * self.hold_time:
+                if self.elapsed < self.zero_time + 1 * self.hold_time:
                     if self.axis == 'linear':
                         cmd.linear.x = i * self.step_value
                     else:
