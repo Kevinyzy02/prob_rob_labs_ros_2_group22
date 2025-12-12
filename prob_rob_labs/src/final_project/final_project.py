@@ -51,12 +51,12 @@ class FinalProjectNode(Node):
         self.x = np.zeros((6, 1), dtype=float)
         self.P = np.diag([1e-3, 1e-3, 1e-3, 1e-2, 1e-2, 1e-2])
 
-        self.q_base = np.array([1e-4, 1e-4, 1e-4, 1e-3, 5e-3, 1.0])
+        self.q_base = np.array([1e-4, 1e-4, 1e-4, 1e-3, 5e-3, 10.0])
 
         self.R_meas = np.diag([
-            (0.02)**2,  # var(omega_r)
-            (0.02)**2,  # var(omega_l)
-            (0.005)**2  # var(omega_g)
+            (0.02)**2,
+            (0.02)**2,
+            (0.005)**2
         ])
 
         self.u_v = 0.0
@@ -158,27 +158,21 @@ class FinalProjectNode(Node):
         cos_th = math.cos(th)
 
         F = np.eye(6)
-        # Row 0: x_new = x + v * cos(th) * dt
         F[0, 2] = -v * sin_th * dt   # dx/dth
         F[0, 3] = cos_th * dt        # dx/dv
 
-        # Row 1: y_new = y + v * sin(th) * dt
         F[1, 2] = v * cos_th * dt    # dy/dth
         F[1, 3] = sin_th * dt        # dy/dv
 
-        # Row 2: th_new = th + w * dt
         F[2, 4] = dt                 # dth/dw
 
-        # Row 3: v_new = a_v * v + + self.Gv * (1.0 - a_v) * u_v
         F[3, 3] = a_v                # dv/dv
 
-        # Row 4: w_new = w + alpha * dt
         F[4, 4] = 1.0                # dw/dw
         F[4, 5] = dt                 # dw/dalpha
 
-        # Row 5: alpha_new = alpha + alpha_dot * dt
-        F[5, 5] = 1.0 - 2.0 * self.zeta * self.wn * dt    # d(alpha_new)/d(alpha) = 1 + dt * (-2*zeta*wn)
-        F[5, 4] = -(self.wn**2) * dt                      # d(alpha_new)/d(w) = dt * (-wn^2)
+        F[5, 5] = 1.0 - 2.0 * self.zeta * self.wn * dt    # d(alpha)/d(alpha)
+        F[5, 4] = -(self.wn**2) * dt                      # d(alpha)/d(w)
 
         Q = np.diag(self.q_base * max(dt, 1e-3))
         self.P = F @ self.P @ F.T + Q
